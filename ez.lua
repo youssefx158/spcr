@@ -37,6 +37,8 @@ local CONFIG = {
 
 local safeZones = {}
 local SAFE_PATHS = {
+    "Workspace.DefaultMap_SharedInstances.Gaps.Gap1.Mud",
+    "Workspace.DefaultMap_SharedInstances.Gaps.Gap2.Mud",
     "Workspace.DefaultMap_SharedInstances.Gaps.Gap3.Mud",
     "Workspace.DefaultMap_SharedInstances.Gaps.Gap4.Mud",
     "Workspace.DefaultMap_SharedInstances.Gaps.Gap5.Mud",
