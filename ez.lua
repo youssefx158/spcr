@@ -111,7 +111,7 @@ statusLabel.BorderSizePixel = 0
 statusLabel.Parent = mainFrame
 
 local tpButton = Instance.new("TextButton")
-tpButton.Size = UDim2.new(1, 0, 0, 60)
+tpButton.Size = UDim2.new(0.48, 0, 0, 60)
 tpButton.Position = UDim2.new(0, 0, 0, 140)
 tpButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
 tpButton.TextColor3 = Color3.fromRGB(0, 255, 0)
@@ -120,6 +120,17 @@ tpButton.TextSize = 12
 tpButton.Font = Enum.Font.GothamBold
 tpButton.BorderSizePixel = 0
 tpButton.Parent = mainFrame
+
+local protectionToggle = Instance.new("TextButton")
+protectionToggle.Size = UDim2.new(0.48, 0, 0, 60)
+protectionToggle.Position = UDim2.new(0.52, 0, 0, 140)
+protectionToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+protectionToggle.TextColor3 = Color3.fromRGB(0, 255, 0)
+protectionToggle.Text = "🛡️ ON"
+protectionToggle.TextSize = 12
+protectionToggle.Font = Enum.Font.GothamBold
+protectionToggle.BorderSizePixel = 0
+protectionToggle.Parent = mainFrame
 
 -- Wave Protection GUI
 local protectionFrame = Instance.new("Frame")
@@ -618,6 +629,7 @@ end
 
 local function smartCollect()
     isCollecting = true
+    protectionActive = true  -- ✅ تفعيل الحماية تلقائياً عند بدء التجميع
     tpButton.Text = "🔄 COLLECTING..."
     tpButton.BackgroundColor3 = Color3.fromRGB(100, 100, 0)
     
@@ -631,8 +643,11 @@ local function smartCollect()
             break
         end
         
-        -- ترتيب حسب الأقرب
+        -- ✅ ترتيب: التكت أولاً ثم حسب الأقرب
         table.sort(items, function(a, b)
+            if a.type ~= b.type then
+                return a.type == "ticket"  -- أولوية للتكت
+            end
             local posA = getPos(a.obj)
             local posB = getPos(b.obj)
             if not posA then return false end
@@ -642,13 +657,34 @@ local function smartCollect()
             return distA < distB
         end)
         
-        -- محاولة جمع العنصر الأقرب
         local collected = false
         for _, item in ipairs(items) do
             if item.obj and item.obj.Parent then
                 local itemPos = getPos(item.obj)
                 if itemPos then
-                    -- فحص الأمان قبل الانتقال
+                    -- ✅ إيجاد أقرب منطقة آمنة للـ item
+                    local closestSafeToItem = nil
+                    local minDistToItem = math.huge
+                    
+                    for _, zone in pairs(safeZones) do
+                        local zonePos = getPos(zone.obj)
+                        if zonePos then
+                            local dist = (itemPos - zonePos).Magnitude
+                            if dist < minDistToItem then
+                                minDistToItem = dist
+                                closestSafeToItem = zone
+                            end
+                        end
+                    end
+                    
+                    -- ✅ الانتقال للمنطقة الآمنة الأقرب أولاً إذا لم نكن فيها
+                    if closestSafeToItem and not isInSafeZone() then
+                        statusLabel.Text = "Moving to safe zone near " .. item.type
+                        teleportToSafety(closestSafeToItem)
+                        task.wait(0.5)
+                    end
+                    
+                    -- فحص الأمان قبل الجمع
                     if isPathSafe(root.Position, itemPos) then
                         statusLabel.Text = "Collecting " .. item.type .. "..."
                         
@@ -658,16 +694,21 @@ local function smartCollect()
                             collected = true
                             
                             task.wait(CONFIG.COLLECTION_DELAY)
+                            
+                            -- ✅ العودة لمنطقة آمنة بعد الجمع
+                            if closestSafeToItem then
+                                teleportToSafety(closestSafeToItem)
+                                task.wait(0.3)
+                            end
                             break
                         end
                     else
-                        print("⚠️ Path unsafe to item, skipping...")
+                        print("⚠️ Path unsafe to item, repositioning...")
                     end
                 end
             end
         end
         
-        -- إذا لم يتم جمع أي شيء، ننتظر قليلاً
         if not collected then
             statusLabel.Text = "Waiting for safe path..."
             task.wait(CONFIG.RESPAWN_CHECK_INTERVAL)
@@ -686,7 +727,6 @@ local function smartCollect()
     tpButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
     statusLabel.Text = "Ready to collect"
 end
-
 -- ════════════════════════════════════════════════════════════
 -- 🛡️ PROTECTION LOOP
 -- ════════════════════════════════════════════════════════════
@@ -706,14 +746,13 @@ local function protectionLoop()
             continue
         end
         
-        local inSafe, zone = isInSafeZone()
+      local inSafe, zone = isInSafeZone()
         
-        -- 🔴 CRITICAL: إيقاف الحماية في المنطقة الآمنة
-        if inSafe then
-            protectionActive = false
+        -- ✅ لا نوقف الحماية إذا كان التجميع نشط
+        if inSafe and not isCollecting then
             protectionFrame.BorderColor3 = Color3.fromRGB(0, 255, 0)
             protectionFrame.BackgroundColor3 = Color3.fromRGB(0, 40, 0)
-            waveStatus.Text = "🛡️ SAFE IN: " .. currentSafeZone .. "\n✅ Protection: PAUSED"
+            waveStatus.Text = "🛡️ SAFE IN: " .. currentSafeZone .. "\n✅ Protection: STANDBY"
             
             -- حذف الخطوط
             for _, line in pairs(lineFolder:GetChildren()) do
@@ -721,8 +760,6 @@ local function protectionLoop()
             end
             
             continue
-        else
-            protectionActive = true
         end
         
         local playerPos = root.Position
@@ -844,6 +881,35 @@ tpButton.MouseButton1Click:Connect(function()
         tpButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
     end
 end)
+tpButton.MouseButton1Click:Connect(function()
+    if not isCollecting then
+        task.spawn(smartCollect)
+    else
+        isCollecting = false
+        tpButton.Text = "⏸️ STOPPED"
+        tpButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+        task.wait(1)
+        tpButton.Text = "🎯 START COLLECTION"
+        tpButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+    end
+end)
+
+protectionToggle.MouseButton1Click:Connect(function()
+    protectionActive = not protectionActive
+    
+    if protectionActive then
+        protectionToggle.Text = "🛡️ ON"
+        protectionToggle.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+        protectionToggle.TextColor3 = Color3.fromRGB(0, 255, 0)
+        print("✅ Protection ENABLED")
+    else
+        protectionToggle.Text = "🛡️ OFF"
+        protectionToggle.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+        protectionToggle.TextColor3 = Color3.fromRGB(255, 100, 100)
+        print("⚠️ Protection DISABLED")
+    end
+end)
+
 
 -- ════════════════════════════════════════════════════════════
 -- 🔄 UPDATE LOOPS
