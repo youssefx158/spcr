@@ -17,7 +17,7 @@ local humanoid = char:WaitForChild("Humanoid")
 
 local CONFIG = {
     -- Wave Protection Settings
-    DANGER_DISTANCE = 15,
+    DANGER_DISTANCE = 10,
     WARNING_DISTANCE = 45,
     SAFE_RADIUS = 12,
     FREEZE_DURATION = 2,
@@ -37,8 +37,6 @@ local CONFIG = {
 
 local safeZones = {}
 local SAFE_PATHS = {
-    "Workspace.DefaultMap_SharedInstances.Gaps.Gap1.Mud",
-    "Workspace.DefaultMap_SharedInstances.Gaps.Gap2.Mud",
     "Workspace.DefaultMap_SharedInstances.Gaps.Gap3.Mud",
     "Workspace.DefaultMap_SharedInstances.Gaps.Gap4.Mud",
     "Workspace.DefaultMap_SharedInstances.Gaps.Gap5.Mud",
@@ -846,27 +844,32 @@ local function protectionLoop()
                 waveCount
             )
             
-            -- ✅ فقط نحمي إذا كانت الحماية مفعلة أو التجميع نشط
-            if (protectionActive or isCollecting) and minDist < CONFIG.DANGER_DISTANCE then
+           if minDist < CONFIG.DANGER_DISTANCE then
                 protectionFrame.BorderColor3 = Color3.fromRGB(255, 0, 0)
                 protectionFrame.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
                 
-                -- إيقاف التجميع عند الخطر
-                if isCollecting then
-                    isCollecting = false
-                    print("⚠️ Collection paused - DANGER!")
-                end
-                
-                local bestZone = findClosestSafeZone()
-                if bestZone then
-                    print("⚠️ DANGER! Distance: " .. math.floor(minDist) .. "m - Safe zone found: " .. bestZone.name)
-                    local success = teleportToSafety(bestZone)
-                    if not success then
-                        print("⚠️ Teleport on cooldown")
+                -- ✅ فقط نحمي إذا كانت الحماية مفعلة أو التجميع نشط
+                if protectionActive or isCollecting then
+                    -- إيقاف التجميع عند الخطر
+                    if isCollecting then
+                        isCollecting = false
+                        print("⚠️ Collection paused - DANGER!")
+                    end
+                    
+                    local bestZone = findClosestSafeZone()
+                    if bestZone then
+                        print("⚠️ DANGER! Distance: " .. math.floor(minDist) .. "m - Safe zone found: " .. bestZone.name)
+                        local success = teleportToSafety(bestZone)
+                        if not success then
+                            print("⚠️ Teleport on cooldown")
+                        end
+                    else
+                        print("⚠️ DANGER! No safe path - Dodging wave...")
+                        dodgeWave()
                     end
                 else
-                    print("⚠️ DANGER! No safe path - Dodging wave...")
-                    dodgeWave()
+                    -- الحماية موقوفة - فقط نعرض التحذير بدون حماية
+                    print("⚠️ DANGER DETECTED but Protection is OFF!")
                 end
             else
                 protectionFrame.BorderColor3 = Color3.fromRGB(0, 200, 255)
