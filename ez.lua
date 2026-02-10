@@ -17,7 +17,7 @@ local humanoid = char:WaitForChild("Humanoid")
 
 local CONFIG = {
     -- Wave Protection Settings
-    DANGER_DISTANCE = 10,
+    DANGER_DISTANCE = 15,
     WARNING_DISTANCE = 45,
     SAFE_RADIUS = 12,
     FREEZE_DURATION = 2,
