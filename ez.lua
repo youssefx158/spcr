@@ -746,9 +746,23 @@ local function protectionLoop()
             continue
         end
         
-      local inSafe, zone = isInSafeZone()
+        -- ✅ إذا الحماية موقوفة والتجميع موقوف = لا نعمل شيء
+        if not protectionActive and not isCollecting then
+            protectionFrame.BorderColor3 = Color3.fromRGB(100, 0, 0)
+            protectionFrame.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
+            waveStatus.Text = "🛡️ PROTECTION: DISABLED\n⚠️ No protection active"
+            
+            -- حذف الخطوط
+            for _, line in pairs(lineFolder:GetChildren()) do
+                line:Destroy()
+            end
+            
+            continue
+        end
         
-        -- ✅ لا نوقف الحماية إذا كان التجميع نشط
+        local inSafe, zone = isInSafeZone()
+        
+        -- ✅ في المنطقة الآمنة ولا يوجد تجميع
         if inSafe and not isCollecting then
             protectionFrame.BorderColor3 = Color3.fromRGB(0, 255, 0)
             protectionFrame.BackgroundColor3 = Color3.fromRGB(0, 40, 0)
@@ -810,25 +824,28 @@ local function protectionLoop()
             end
             
             local freezeStatus = isFrozen and " ❄️ FROZEN" or ""
+            local protectionStatus = (protectionActive or isCollecting) and "ACTIVE" or "DISABLED"
             
             waveStatus.Text = string.format(
                 "🌊 Wave: %s\n" ..
                 "📏 Distance: %.1fm (Future: %.1fm)\n" ..
                 "⚡ Speed: %.1f studs/s\n" ..
-                "🛡️ Status: ACTIVE%s\n" ..
+                "🛡️ Status: %s%s\n" ..
                 "⚠️ Danger: %dm | Safe: %dm\n" ..
                 "📊 Tracking: %d waves",
                 closestWave.wave.Name,
                 closestWave.dist,
                 closestWave.future,
                 closestWave.speed,
+                protectionStatus,
                 freezeStatus,
                 CONFIG.DANGER_DISTANCE,
                 CONFIG.SAFE_RADIUS,
                 waveCount
             )
             
-            if minDist < CONFIG.DANGER_DISTANCE then
+            -- ✅ فقط نحمي إذا كانت الحماية مفعلة أو التجميع نشط
+            if (protectionActive or isCollecting) and minDist < CONFIG.DANGER_DISTANCE then
                 protectionFrame.BorderColor3 = Color3.fromRGB(255, 0, 0)
                 protectionFrame.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
                 
@@ -858,7 +875,8 @@ local function protectionLoop()
                 line:Destroy()
             end
             
-            waveStatus.Text = "✅ NO WAVES DETECTED\n📊 Tracking: " .. waveCount .. " waves\n🛡️ Safe Zones: " .. #safeZones .. "\n⚙️ Danger Distance: " .. CONFIG.DANGER_DISTANCE .. "m"
+            local protectionStatus = (protectionActive or isCollecting) and "ACTIVE" or "DISABLED"
+            waveStatus.Text = "✅ NO WAVES DETECTED\n📊 Tracking: " .. waveCount .. " waves\n🛡️ Safe Zones: " .. #safeZones .. "\n🛡️ Protection: " .. protectionStatus .. "\n⚙️ Danger Distance: " .. CONFIG.DANGER_DISTANCE .. "m"
             protectionFrame.BorderColor3 = Color3.fromRGB(0, 255, 0)
             protectionFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
         end
